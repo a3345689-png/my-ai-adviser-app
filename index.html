@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 顧問統整系統</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        .input-group input, .input-group textarea, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result-section {
+            margin-top: 30px;
+            border-top: 2px solid #ecf0f1;
+            padding-top: 30px;
+        }
+        .result-box {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .result-box h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 1.2em;
+        }
+        .loading {
+            text-align: center;
+            font-style: italic;
+            color: #888;
+        }
+        #error-message {
+            color: #e74c3c;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>全方位 AI 顧問</h1>
+        <div id="error-message"></div>
+        <div class="input-group">
+            <label for="advisor-role">給 AI 的身份概要：</label>
+            <input type="text" id="advisor-role" placeholder="例如：資深財務顧問">
+        </div>
+        <div class="input-group">
+            <label for="my-role">我的身份概要：</label>
+            <input type="text" id="my-role" placeholder="例如：剛畢業的學生，想學習投資">
+        </div>
+        <div class="input-group">
+            <label for="question">我的問題：</label>
+            <textarea id="question" placeholder="輸入你的具體問題"></textarea>
+        </div>
+        <div class="input-group">
+            <label for="model-choice">選擇 AI 模型：</label>
+            <select id="model-choice">
+                <option value="all">所有模型並統整</option>
+                <option value="gpt">單獨 GPT 顧問 (gpt-3.5-turbo)</option>
+                <option value="gemini">單獨 Gemini 顧問 (gemini-1.5-flash)</option>
+                <option value="deepseek">單獨 DeepSeek 顧問 (deepseek-chat)</option>
+            </select>
+        </div>
+        <button id="submit-btn">獲取建議</button>
+        
+        <div id="loading-spinner" class="loading" style="display: none;">
+            正在召喚 AI 顧問，請稍候...
+        </div>
+        
+        <div id="results" class="result-section">
+            </div>
+    </div>
+
+    <script>
+        document.getElementById('submit-btn').addEventListener('click', async () => {
+            const advisorRole = document.getElementById('advisor-role').value;
+            const myRole = document.getElementById('my-role').value;
+            const question = document.getElementById('question').value;
+            const modelChoice = document.getElementById('model-choice').value;
+            const resultsDiv = document.getElementById('results');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const errorMessage = document.getElementById('error-message');
+
+            // 清空之前的結果和錯誤訊息
+            resultsDiv.innerHTML = '';
+            errorMessage.style.display = 'none';
+
+            if (!advisorRole || !myRole || !question) {
+                errorMessage.textContent = '請填寫所有欄位！';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            loadingSpinner.style.display = 'block';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/consult', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        advisor_role: advisorRole,
+                        my_role: myRole,
+                        question: question,
+                        model_choice: modelChoice
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || '伺服器錯誤');
+                }
+
+                const data = await response.json();
+                loadingSpinner.style.display = 'none';
+
+                // 根據選擇顯示結果
+                if (modelChoice === 'all') {
+                    resultsDiv.innerHTML += `
+                        <div class="result-box">
+                            <h3>GPT 顧問的建議</h3>
+                            <p>${data.gpt_output}</p>
+                        </div>
+                        <div class="result-box">
+                            <h3>Gemini 顧問的建議</h3>
+                            <p>${data.gemini_output}</p>
+                        </div>
+                        <div class="result-box">
+                            <h3>DeepSeek 顧問的建議</h3>
+                            <p>${data.deepseek_output}</p>
+                        </div>
+                        <div class="result-box" style="background-color: #e8f5ff; border-color: #b3e0ff;">
+                            <h3>Gemini 最終統整分析</h3>
+                            <p>${data.final_summary}</p>
+                        </div>
+                    `;
+                } else if (modelChoice === 'gpt') {
+                    resultsDiv.innerHTML += `
+                        <div class="result-box">
+                            <h3>GPT 顧問的建議</h3>
+                            <p>${data.gpt_output}</p>
+                        </div>
+                    `;
+                } else if (modelChoice === 'gemini') {
+                    resultsDiv.innerHTML += `
+                        <div class="result-box">
+                            <h3>Gemini 顧問的建議</h3>
+                            <p>${data.gemini_output}</p>
+                        </div>
+                    `;
+                } else if (modelChoice === 'deepseek') {
+                    resultsDiv.innerHTML += `
+                        <div class="result-box">
+                            <h3>DeepSeek 顧問的建議</h3>
+                            <p>${data.deepseek_output}</p>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                loadingSpinner.style.display = 'none';
+                errorMessage.textContent = '發生錯誤：' + error.message;
+                errorMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
